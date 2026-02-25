@@ -62,118 +62,245 @@ from insightface.app import FaceAnalysis
 from insightface.utils import face_align
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PLATFORM-DATENBANK  (Username → Profil-URL + Fehlerkennung)
-# format: { "Name": {"url": "...", "err": "string_im_body_wenn_404", "code": 404} }
-# "err"  = substring der NUR in der Fehlerseite vorkommt
-# "code" = HTTP-Code der bei nicht existierendem Account kommt (default: 404)
+# PLATFORM-DATENBANK
+# Felder:
+#   url      = Profil-URL (wird auch als Ergebnis-Link angezeigt)
+#   api      = (optional) bessere Check-URL (API-Endpunkt, zuverlässiger)
+#   err      = Substring der NUR auf Fehlerseiten vorkommt
+#   code     = HTTP-Code wenn Account NICHT existiert (default: 404)
+#   ok       = Substring der NUR bei existierendem Account vorkommt
+#   reliable = True → Ergebnis zuverlässig (API/err-String)
+#              False → nur Code-Check, möglicher False-Positive
 # ─────────────────────────────────────────────────────────────────────────────
 PLATFORMS: dict = {
     # ── Mainstream ──────────────────────────────────────────────────────────
-    "Instagram":    {"url": "https://www.instagram.com/{}/",
-                     "err": "Sorry, this page"},
-    "TikTok":       {"url": "https://www.tiktok.com/@{}",
-                     "err": "Couldn't find this account"},
-    "Twitter/X":    {"url": "https://x.com/{}",
-                     "err": "This account doesn"},
-    "YouTube":      {"url": "https://www.youtube.com/@{}",
-                     "err": "This page isn't available"},
-    "Facebook":     {"url": "https://www.facebook.com/{}",
-                     "code": 404},
-    "Pinterest":    {"url": "https://www.pinterest.com/{}/",
-                     "err": "isn't available"},
-    "Snapchat":     {"url": "https://www.snapchat.com/add/{}",
-                     "err": "Sorry! We couldn"},
-    "Reddit":       {"url": "https://www.reddit.com/user/{}",
-                     "err": "Sorry, nobody on Reddit"},
-    "LinkedIn":     {"url": "https://www.linkedin.com/in/{}",
-                     "code": 404},
-    "Twitch":       {"url": "https://www.twitch.tv/{}",
-                     "err": "Sorry. Unless you"},
-    "BeReal":       {"url": "https://bere.al/{}",
-                     "code": 404},
-    "Tumblr":       {"url": "https://{}.tumblr.com/",
-                     "err": "There's nothing here"},
-    "Flickr":       {"url": "https://www.flickr.com/people/{}/",
-                     "code": 404},
-    "SoundCloud":   {"url": "https://soundcloud.com/{}",
-                     "code": 404},
-    "Spotify":      {"url": "https://open.spotify.com/user/{}",
-                     "code": 404},
+    "Instagram":    {"url":  "https://www.instagram.com/{}/",
+                     "api":  "https://www.instagram.com/{}/?__a=1&__d=dis",
+                     "err":  "Sorry, this page",
+                     "reliable": True},
+    "TikTok":       {"url":  "https://www.tiktok.com/@{}",
+                     # oEmbed: 200+JSON=existiert, 400/404=nicht gefunden
+                     "api":  "https://www.tiktok.com/oembed?url=https://www.tiktok.com/@{}",
+                     "ok":   "author_name",
+                     "reliable": True},
+    "Twitter/X":    {"url":  "https://x.com/{}",
+                     "err":  "This account doesn",
+                     "reliable": True},
+    "YouTube":      {"url":  "https://www.youtube.com/@{}",
+                     "err":  "This page isn",
+                     "reliable": True},
+    "Facebook":     {"url":  "https://www.facebook.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Pinterest":    {"url":  "https://www.pinterest.com/{}/",
+                     "err":  "isn't available",
+                     "reliable": True},
+    "Snapchat":     {"url":  "https://www.snapchat.com/add/{}",
+                     "err":  "Sorry! We couldn",
+                     "reliable": True},
+    "Reddit":       {"url":  "https://www.reddit.com/user/{}",
+                     "api":  "https://www.reddit.com/user/{}/about.json",
+                     "ok":   "\"name\":",
+                     "reliable": True},
+    "LinkedIn":     {"url":  "https://www.linkedin.com/in/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Twitch":       {"url":  "https://www.twitch.tv/{}",
+                     "api":  "https://api.twitch.tv/helix/users?login={}",
+                     "err":  "Sorry. Unless you",
+                     "reliable": True},
+    "BeReal":       {"url":  "https://bere.al/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Tumblr":       {"url":  "https://{}.tumblr.com/",
+                     "err":  "There's nothing here",
+                     "reliable": True},
+    "Flickr":       {"url":  "https://www.flickr.com/people/{}/",
+                     "code": 404,
+                     "reliable": False},
+    "SoundCloud":   {"url":  "https://soundcloud.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Spotify":      {"url":  "https://open.spotify.com/user/{}",
+                     "ok":   "\"type\":\"user\"",
+                     "reliable": True},
     # ── Dev / Tech ───────────────────────────────────────────────────────────
-    "GitHub":       {"url": "https://github.com/{}",
-                     "code": 404},
-    "GitLab":       {"url": "https://gitlab.com/{}",
-                     "code": 404},
-    "Patreon":      {"url": "https://www.patreon.com/{}",
-                     "code": 404},
-    "Replit":       {"url": "https://replit.com/@{}",
-                     "code": 404},
-    "HackerNews":   {"url": "https://news.ycombinator.com/user?id={}",
-                     "err": "No such user"},
-    "Steam":        {"url": "https://steamcommunity.com/id/{}",
-                     "err": "The specified profile could not be found"},
+    "GitHub":       {"url":  "https://github.com/{}",
+                     "api":  "https://api.github.com/users/{}",
+                     "ok":   "\"login\":",
+                     "reliable": True},
+    "GitLab":       {"url":  "https://gitlab.com/{}",
+                     "api":  "https://gitlab.com/api/v4/users?username={}",
+                     "ok":   "\"username\":",
+                     "reliable": True},
+    "Patreon":      {"url":  "https://www.patreon.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Replit":       {"url":  "https://replit.com/@{}",
+                     "code": 404,
+                     "reliable": False},
+    "HackerNews":   {"url":  "https://news.ycombinator.com/user?id={}",
+                     "err":  "No such user",
+                     "reliable": True},
+    "Steam":        {"url":  "https://steamcommunity.com/id/{}",
+                     "err":  "The specified profile could not be found",
+                     "reliable": True},
     # ── CIS / DACH / International ───────────────────────────────────────────
-    "VK":           {"url": "https://vk.com/{}",
-                     "err": "This page no longer exists"},
-    "OK.ru":        {"url": "https://ok.ru/{}",
-                     "code": 404},
-    "XING":         {"url": "https://www.xing.com/profile/{}",
-                     "code": 404},
-    "Ask.fm":       {"url": "https://ask.fm/{}",
-                     "code": 404},
+    "VK":           {"url":  "https://vk.com/{}",
+                     "err":  "This page no longer exists",
+                     "reliable": True},
+    "OK.ru":        {"url":  "https://ok.ru/{}",
+                     "code": 404,
+                     "reliable": False},
+    "XING":         {"url":  "https://www.xing.com/profile/{}",
+                     "code": 404,
+                     "reliable": False},
     # ── Foren / Nischen ──────────────────────────────────────────────────────
-    "Medium":       {"url": "https://medium.com/@{}",
-                     "code": 404},
-    "Substack":     {"url": "https://{}.substack.com/",
-                     "code": 404},
-    "Quora":        {"url": "https://www.quora.com/profile/{}",
-                     "code": 404},
-    "Wikipedia":    {"url": "https://en.wikipedia.org/wiki/User:{}",
-                     "err": "does not exist"},
-    "About.me":     {"url": "https://about.me/{}",
-                     "code": 404},
-    "Linktree":     {"url": "https://linktr.ee/{}",
-                     "code": 404},
-    "Behance":      {"url": "https://www.behance.net/{}",
-                     "code": 404},
-    "DeviantArt":   {"url": "https://www.deviantart.com/{}",
-                     "code": 404},
-    "500px":        {"url": "https://500px.com/p/{}",
-                     "code": 404},
-    "Vimeo":        {"url": "https://vimeo.com/{}",
-                     "code": 404},
-    "Dailymotion":  {"url": "https://www.dailymotion.com/{}",
-                     "code": 404},
-    "Twitch (clips)":{"url": "https://clips.twitch.tv/{}",
-                     "code": 404},
-    "Kick.com":     {"url": "https://kick.com/{}",
-                     "code": 404},
-    "Rumble":       {"url": "https://rumble.com/c/{}",
-                     "code": 404},
-    "Odysee":       {"url": "https://odysee.com/@{}",
-                     "code": 404},
-    "Mastodon":     {"url": "https://mastodon.social/@{}",
-                     "code": 404},
-    "Bluesky":      {"url": "https://bsky.app/profile/{}",
-                     "code": 404},
-    "Threads":      {"url": "https://www.threads.net/@{}",
-                     "code": 404},
-    "OnlyFans":     {"url": "https://onlyfans.com/{}",
-                     "code": 404},
-    "Fansly":       {"url": "https://fansly.com/{}",
-                     "code": 404},
-    "Vsco":         {"url": "https://vsco.co/{}",
-                     "code": 404},
-    "Poshmark":     {"url": "https://poshmark.com/closet/{}",
-                     "code": 404},
-    "Etsy":         {"url": "https://www.etsy.com/people/{}",
-                     "code": 404},
-    "Cashapp":      {"url": "https://cash.app/${}",
-                     "code": 404},
-    "Venmo":        {"url": "https://venmo.com/{}",
-                     "code": 404},
-    "Chess.com":    {"url": "https://www.chess.com/member/{}",
-                     "code": 404},
+    "Medium":       {"url":  "https://medium.com/@{}",
+                     "code": 404,
+                     "reliable": False},
+    "Substack":     {"url":  "https://{}.substack.com/",
+                     "code": 404,
+                     "reliable": False},
+    "Quora":        {"url":  "https://www.quora.com/profile/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Wikipedia":    {"url":  "https://en.wikipedia.org/wiki/User:{}",
+                     "err":  "does not exist",
+                     "reliable": True},
+    "About.me":     {"url":  "https://about.me/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Linktree":     {"url":  "https://linktr.ee/{}",
+                     "api":  "https://linktr.ee/api/v1/profiles/{}",
+                     "ok":   "\"username\":",
+                     "reliable": True},
+    "Behance":      {"url":  "https://www.behance.net/{}",
+                     "code": 404,
+                     "reliable": False},
+    "DeviantArt":   {"url":  "https://www.deviantart.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "500px":        {"url":  "https://500px.com/p/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Vimeo":        {"url":  "https://vimeo.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Dailymotion":  {"url":  "https://www.dailymotion.com/{}",
+                     "err":  "This channel does not exist",
+                     "reliable": True},
+    "Kick.com":     {"url":  "https://kick.com/{}",
+                     "api":  "https://kick.com/api/v1/channels/{}",
+                     "ok":   "\"slug\":",
+                     "reliable": True},
+    "Rumble":       {"url":  "https://rumble.com/c/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Odysee":       {"url":  "https://odysee.com/@{}",
+                     "err":  "Page Not Found",
+                     "reliable": True},
+    "Mastodon":     {"url":  "https://mastodon.social/@{}",
+                     "api":  "https://mastodon.social/api/v1/accounts/lookup?acct={}",
+                     "ok":   "\"username\":",
+                     "reliable": True},
+    "Bluesky":      {"url":  "https://bsky.app/profile/{}",
+                     "api":  "https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle={}.bsky.social",
+                     "ok":   "did",
+                     "reliable": True},
+    "Threads":      {"url":  "https://www.threads.net/@{}",
+                     "err":  "Sorry, this page",
+                     "reliable": True},
+    "OnlyFans":     {"url":  "https://onlyfans.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Fansly":       {"url":  "https://fansly.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Vsco":         {"url":  "https://vsco.co/{}",
+                     "err":  "page not found",
+                     "reliable": True},
+    "Poshmark":     {"url":  "https://poshmark.com/closet/{}",
+                     "err":  "page not found",
+                     "reliable": True},
+    "Etsy":         {"url":  "https://www.etsy.com/people/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Cashapp":      {"url":  "https://cash.app/${}",
+                     "err":  "$cashtag not found",
+                     "reliable": True},
+    "Venmo":        {"url":  "https://venmo.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Chess.com":    {"url":  "https://www.chess.com/member/{}",
+                     "code": 404,
+                     "reliable": False},
+    # ── Neu hinzugefügt ──────────────────────────────────────────────────────
+    "Twitch (clips)": {"url": "https://clips.twitch.tv/{}",
+                       "code": 404,
+                       "reliable": False},
+    "Telegram":     {"url":  "https://t.me/{}",
+                     "err":  "If you have Telegram",
+                     "reliable": True},
+    "Discord":      {"url":  "https://discord.com/invite/{}",
+                     "err":  "Invite Invalid",
+                     "reliable": True},
+    "WhatsApp":     {"url":  "https://wa.me/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Ask.fm":       {"url":  "https://ask.fm/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Clubhouse":    {"url":  "https://www.joinclubhouse.com/@{}",
+                     "code": 404,
+                     "reliable": False},
+    "Letterboxd":   {"url":  "https://letterboxd.com/{}",
+                     "err":  "Sorry, we can",
+                     "reliable": True},
+    "Last.fm":      {"url":  "https://www.last.fm/user/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Goodreads":    {"url":  "https://www.goodreads.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Duolingo":     {"url":  "https://www.duolingo.com/profile/{}",
+                     "api":  "https://www.duolingo.com/2017-06-30/users?username={}",
+                     "ok":   "\"username\":",
+                     "reliable": True},
+    "Strava":       {"url":  "https://www.strava.com/athletes/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Mix":          {"url":  "https://mix.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Fiverr":       {"url":  "https://www.fiverr.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Freelancer":   {"url":  "https://www.freelancer.com/u/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Upwork":       {"url":  "https://www.upwork.com/freelancers/~{}",
+                     "code": 404,
+                     "reliable": False},
+    "Gumroad":      {"url":  "https://gumroad.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "Ko-fi":        {"url":  "https://ko-fi.com/{}",
+                     "code": 404,
+                     "reliable": False},
+    "BuyMeACoffee": {"url":  "https://buymeacoffee.com/{}",
+                     "api":  "https://backend.buymeacoffee.com/api/v1/page/{}",
+                     "ok":   "\"vanity\":",
+                     "reliable": True},
+    "Triller":      {"url":  "https://triller.co/@{}",
+                     "code": 404,
+                     "reliable": False},
+    "Likee":        {"url":  "https://likee.video/@{}",
+                     "code": 404,
+                     "reliable": False},
+    "Kwai":         {"url":  "https://www.kwai.com/@{}",
+                     "code": 404,
+                     "reliable": False},
 }
 
 _CHECK_HEADERS = {
@@ -452,31 +579,42 @@ def _save_hits_collage(hits: list, out_path: Path, max_n: int = 16):
 def _check_platform(name: str, cfg: dict, username: str) -> tuple:
     """
     Prüft ob 'username' auf einer Plattform existiert.
-    Gibt (name, url, found: bool, note: str) zurück.
+    Gibt (name, profile_url, found: bool, note: str, reliable: bool) zurück.
     """
-    url     = cfg["url"].format(username)
-    err_str = cfg.get("err", None)
-    exp_code= cfg.get("code", 404)
+    profile_url = cfg["url"].format(username)
+    check_url   = cfg["api"].format(username) if "api" in cfg else profile_url
+    err_str     = cfg.get("err", None)
+    ok_str      = cfg.get("ok", None)
+    exp_code    = cfg.get("code", 404)
+    reliable    = cfg.get("reliable", False)
+
     try:
         if _REQUESTS_OK:
-            r = _req.get(url, headers=_CHECK_HEADERS,
-                         timeout=10, allow_redirects=True)
+            r    = _req.get(check_url, headers=_CHECK_HEADERS,
+                            timeout=12, allow_redirects=True)
             code = r.status_code
             body = r.text
         else:
-            req  = urllib.request.Request(url, headers=_CHECK_HEADERS)
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            req  = urllib.request.Request(check_url, headers=_CHECK_HEADERS)
+            with urllib.request.urlopen(req, timeout=12) as resp:
                 code = resp.status
-                body = resp.read(200).decode("utf-8", errors="ignore")
+                body = resp.read(500).decode("utf-8", errors="ignore")
 
         if code == 200:
+            if ok_str:
+                # Must contain ok_str to be confirmed
+                found = ok_str.lower() in body.lower()
+                return name, profile_url, found, f"API {code}" if found else "API-Check negativ", reliable
             if err_str and err_str.lower() in body.lower():
-                return name, url, False, "Seite existiert, aber User nicht"
-            return name, url, True, f"HTTP {code}"
+                return name, profile_url, False, "User-Fehlerseite erkannt", reliable
+            return name, profile_url, True, f"HTTP {code}", reliable
+        elif code in (301, 302, 308):
+            return name, profile_url, False, f"Redirect ({code})", reliable
         else:
-            return name, url, False, f"HTTP {code}"
+            return name, profile_url, False, f"HTTP {code}", reliable
     except Exception as e:
-        return name, url, None, f"Fehler: {e}"
+        short = str(e)[:60]
+        return name, profile_url, None, f"Fehler: {short}", reliable
 
 
 def cmd_username(username: str, workers: int = 20):
@@ -679,18 +817,73 @@ def cmd_compare(model, target_path: str, compare_path: str):
     ok(f"Side-by-Side → {OUTPUT_DIR / 'side_by_side.jpg'}")
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
+# ─── MODUS 6: Klarnamen-Suche (Google Dorks) ────────────────────────────────
+def cmd_name(name: str, extra: str = ""):
+    """Generiert Google/Yandex/Bing Dork-Links für einen Klarnamen."""
+    q      = urllib.parse.quote_plus(f'"{name}"')
+    qe     = urllib.parse.quote_plus(f'"{name}" {extra}') if extra else q
+    bold(f"\n{'─'*60}")
+    bold(f"  NAMENS-SUCHE: {name}")
+    bold(f"{'─'*60}\n")
+
+    dorks = [
+        ("Google  – Alle Ergebnisse",
+         f"https://www.google.com/search?q={qe}"),
+        ("Google  – Nur Instagram",
+         f"https://www.google.com/search?q={q}+site:instagram.com"),
+        ("Google  – Nur TikTok",
+         f"https://www.google.com/search?q={q}+site:tiktok.com"),
+        ("Google  – Nur Facebook",
+         f"https://www.google.com/search?q={q}+site:facebook.com"),
+        ("Google  – Nur LinkedIn",
+         f"https://www.google.com/search?q={q}+site:linkedin.com"),
+        ("Google  – Nur Twitter/X",
+         f"https://www.google.com/search?q={q}+site:x.com"),
+        ("Google  – Nur YouTube",
+         f"https://www.google.com/search?q={q}+site:youtube.com"),
+        ("Google  – Nur Reddit",
+         f"https://www.google.com/search?q={q}+site:reddit.com"),
+        ("Google  – Nur VK",
+         f"https://www.google.com/search?q={q}+site:vk.com"),
+        ("Yandex  – Alle",
+         f"https://yandex.com/search/?text={qe}"),
+        ("Bing    – Alle",
+         f"https://www.bing.com/search?q={qe}"),
+        ("DuckDuckGo – Alle",
+         f"https://duckduckgo.com/?q={qe}"),
+        ("True People Search",
+         f"https://www.truepeoplesearch.com/results?name={urllib.parse.quote_plus(name)}"),
+        ("Spokeo (USA)",
+         f"https://www.spokeo.com/{urllib.parse.quote_plus(name)}"),
+    ]
+
+    for label, url in dorks:
+        print(f"  {C.BLUE}{label:<30}{C.RESET}  {url}")
+
+    print(f"\n  {C.YELLOW}[!]{C.RESET} Tipp: Kopiere die Links in deinen Browser.")
+    print(f"       Mit --open-browser öffnet das Script sie automatisch.\n")
+
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    rpt = {"timestamp": datetime.now().isoformat(), "name": name,
+            "extra": extra, "dorks": [{"label": l, "url": u} for l, u in dorks]}
+    rpt_path = OUTPUT_DIR / f"name_{name.replace(' ', '_')}.json"
+    rpt_path.write_text(json.dumps(rpt, indent=2, ensure_ascii=False), encoding="utf-8")
+    ok(f"Report → {rpt_path}")
+
+
 def build_parser():
     p = argparse.ArgumentParser(
         description="OSINT Face Finder – KI-gestützte Gesichtssuche",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog="""Beispiele:
+  python app.py                                   # interaktives Menue
+  python app.py --username max_mustermann
+  python app.py --username max.mueller --reliable
+  python app.py --name "Anna Mueller" --extra Deutschland
+  python app.py --social schwester.jpg --open-browser
   python app.py --analyze test.jpg
   python app.py --target oma.jpg --scan C:\\Fotos
   python app.py --target oma.jpg --compare bild2.jpg
-  python app.py --target schwester.jpg --scan . --threshold 0.40 --cpu
-  python app.py --username max_mustermann
-  python app.py --social schwester.jpg
-  python app.py --social schwester.jpg --open-browser
 """
     )
     p.add_argument("--analyze",      metavar="BILD",     help="Alle Gesichter in einem Bild analysieren")
@@ -700,11 +893,17 @@ def build_parser():
     p.add_argument("--threshold",    metavar="0.0-1.0",  type=float, default=0.45,
                    help="Ähnlichkeits-Schwelle für --scan (Standard: 0.45)")
     p.add_argument("--username",     metavar="NAME",
-                   help="Username auf 50+ Social-Media-Plattformen suchen")
+                   help="Username auf 60+ Plattformen suchen")
+    p.add_argument("--reliable",     action="store_true",
+                   help="Bei --username: nur zuverlässige Checks")
+    p.add_argument("--name",         metavar="KLARNAME",
+                   help="Klarnamen-Suche mit Google/Yandex Dorks (z.B. \"Anna Mueller\")")
+    p.add_argument("--extra",        metavar="SUCHBEGRIFF", default="",
+                   help="Zusatz für --name Suche (z.B. Stadt, Land, Schule)")
     p.add_argument("--social",       metavar="BILD",
-                   help="Gesicht aus Bild extrahieren + Social-Media-Suchlinks ausgeben")
+                   help="Gesicht extrahieren + alle Social-Search-Links")
     p.add_argument("--open-browser", action="store_true",
-                   help="Bei --social: öffnet die wichtigsten Seiten direkt im Browser")
+                   help="Bei --social/--name: öffnet Seiten direkt im Browser")
     p.add_argument("--cpu",          action="store_true", help="Nur CPU (kein CUDA/GPU)")
     return p
 
@@ -718,22 +917,27 @@ def main():
 
     parser = build_parser()
     if len(sys.argv) == 1:
-        parser.print_help()
-        print(f"\n{C.YELLOW}[!]{C.RESET} Kein Modus angegeben. Schnell-Start:")
-        print(f"    {C.CYAN}python app.py --analyze test.jpg{C.RESET}")
-        print(f"    {C.CYAN}python app.py --target oma.jpg --scan .{C.RESET}\n")
-        sys.exit(0)
+        _interactive_menu()
+        return
 
     args = parser.parse_args()
     t0   = time.time()
 
-    # ── Username-Modus braucht kein KI-Modell ────────────────────────────────
+    # ── Direkte Modi ohne KI-Modell ──────────────────────────────────────────
     if args.username:
-        cmd_username(args.username)
-        info(f"Fertig in {time.time() - t0:.1f}s  │  Ergebnisse in: {OUTPUT_DIR.resolve()}")
+        cmd_username(args.username, only_reliable=args.reliable)
+        info(f"Fertig in {time.time() - t0:.1f}s  |  Ergebnisse: {OUTPUT_DIR.resolve()}")
         return
 
-    # ── Alle anderen Modi benötigen das KI-Modell ─────────────────────────────
+    if args.name:
+        cmd_name(args.name, extra=args.extra)
+        if args.open_browser:
+            q = urllib.parse.quote_plus(f'"{args.name}" {args.extra}'.strip())
+            webbrowser.open(f"https://www.google.com/search?q={q}")
+        info(f"Fertig in {time.time() - t0:.1f}s")
+        return
+
+    # ── KI-Modell laden ──────────────────────────────────────────────────────
     model = load_model(gpu=not args.cpu)
 
     if args.analyze:
@@ -759,6 +963,81 @@ def main():
         sys.exit(1)
 
     info(f"Fertig in {time.time() - t0:.1f}s  │  Ergebnisse in: {OUTPUT_DIR.resolve()}")
+
+# ─── Interaktives Menü ───────────────────────────────────────────────────────
+def _interactive_menu():
+    """Wird gestartet wenn python app.py ohne Argumente aufgerufen wird."""
+    t0 = time.time()
+    while True:
+        print(f"""
+  {C.BOLD}{'─'*54}{C.RESET}
+  {C.CYAN}[1]{C.RESET}  Username suchen        (60+ Plattformen)
+  {C.CYAN}[2]{C.RESET}  Klarname / Google Dorks suchen
+  {C.CYAN}[3]{C.RESET}  Gesicht analysieren    (Foto hochladen)
+  {C.CYAN}[4]{C.RESET}  Social-Media von Foto  (Face → Links)
+  {C.CYAN}[5]{C.RESET}  Zwei Fotos vergleichen (Selbe Person?)
+  {C.CYAN}[6]{C.RESET}  Ordner durchsuchen     (Face-Scan)
+  {C.RED}[Q]{C.RESET}  Beenden
+  {C.BOLD}{'─'*54}{C.RESET}""")
+        choice = input(f"  {C.BOLD}Waehle [1-6 / Q]: {C.RESET}").strip().lower()
+
+        if choice == "q":
+            print(f"  {C.YELLOW}Beendet.{C.RESET}\n")
+            break
+
+        elif choice == "1":
+            u = input(f"  {C.CYAN}Username eingeben: {C.RESET}").strip()
+            if not u: warn("Kein Username eingegeben."); continue
+            r = input(f"  Nur zuverlaessige Checks? [j/N]: ").strip().lower()
+            cmd_username(u, only_reliable=(r == "j"))
+
+        elif choice == "2":
+            n = input(f"  {C.CYAN}Klarname (z.B. Anna Mueller): {C.RESET}").strip()
+            if not n: warn("Kein Name eingegeben."); continue
+            e = input(f"  Zusatz (Stadt/Land/leer lassen): {C.RESET}").strip()
+            cmd_name(n, extra=e)
+            ob = input(f"  Im Browser oeffnen? [j/N]: ").strip().lower()
+            if ob == "j":
+                q = urllib.parse.quote_plus(f'"{n}" {e}'.strip())
+                webbrowser.open(f"https://www.google.com/search?q={q}")
+
+        elif choice == "3":
+            f = input(f"  {C.CYAN}Pfad zum Foto: {C.RESET}").strip().strip('"')
+            if not Path(f).exists(): err(f"Datei nicht gefunden: {f}"); continue
+            model = load_model(gpu=True)
+            cmd_analyze(model, f)
+
+        elif choice == "4":
+            f = input(f"  {C.CYAN}Pfad zum Foto: {C.RESET}").strip().strip('"')
+            if not Path(f).exists(): err(f"Datei nicht gefunden: {f}"); continue
+            ob = input(f"  Im Browser oeffnen? [j/N]: ").strip().lower()
+            model = load_model(gpu=True)
+            cmd_social(model, f, open_browser=(ob == "j"))
+
+        elif choice == "5":
+            a = input(f"  {C.CYAN}Foto A (Ziel-Person): {C.RESET}").strip().strip('"')
+            b = input(f"  {C.CYAN}Foto B (Vergleich):   {C.RESET}").strip().strip('"')
+            for p in (a, b):
+                if not Path(p).exists(): err(f"Datei nicht gefunden: {p}"); break
+            else:
+                model = load_model(gpu=True)
+                cmd_compare(model, a, b)
+
+        elif choice == "6":
+            t = input(f"  {C.CYAN}Foto der Ziel-Person: {C.RESET}").strip().strip('"')
+            d = input(f"  {C.CYAN}Ordner durchsuchen:   {C.RESET}").strip().strip('"')
+            th = input(f"  Schwelle [0.0-1.0, Enter=0.45]: {C.RESET}").strip()
+            th = float(th) if th else 0.45
+            for p in (t, d):
+                if not Path(p).exists(): err(f"Nicht gefunden: {p}"); break
+            else:
+                model = load_model(gpu=True)
+                cmd_scan(model, t, d, th)
+        else:
+            warn("Ungueltige Auswahl.")
+
+    info(f"Sitzung beendet in {time.time()-t0:.0f}s  |  Ergebnisse: {OUTPUT_DIR.resolve()}")
+
 
 if __name__ == "__main__":
     main()

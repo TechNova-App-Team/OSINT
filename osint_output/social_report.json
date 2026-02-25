@@ -1,0 +1,57 @@
+{
+  "timestamp": "2026-02-25T20:20:30.216261",
+  "source_image": "test.png",
+  "aligned_face": "osint_output\\social_search_face.jpg",
+  "face_quality": 0.7106,
+  "gender": "Frau",
+  "age_estimate": 50,
+  "found_profiles": [
+    {
+      "platform": "Twitter/X",
+      "username": "ads",
+      "url": "https://x.com/ads"
+    },
+    {
+      "platform": "Twitter/X",
+      "username": "clck",
+      "url": "https://x.com/clck"
+    },
+    {
+      "platform": "Twitter/X",
+      "username": "tune",
+      "url": "https://x.com/tune"
+    },
+    {
+      "platform": "Twitter/X",
+      "username": "collections",
+      "url": "https://x.com/collections"
+    },
+    {
+      "platform": "Twitter/X",
+      "username": "maps",
+      "url": "https://x.com/maps"
+    },
+    {
+      "platform": "Twitter/X",
+      "username": "auth",
+      "url": "https://x.com/auth"
+    },
+    {
+      "platform": "Twitter/X",
+      "username": "company",
+      "url": "https://x.com/company"
+    },
+    {
+      "platform": "Twitter/X",
+      "username": "termsofservice",
+      "url": "https://x.com/termsofservice"
+    },
+    {
+      "platform": "Pinterest",
+      "username": "pin",
+      "url": "https://pinterest.com/pin"
+    }
+  ],
+  "yandex_result": "https://yandex.com/images/search?rpt=imageview",
+  "bing_result": "https://www.bing.com/images/search?q=&view=detailv2&iss=sbiupload&FORM=SBIVSP"
+}

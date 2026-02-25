@@ -1,0 +1,282 @@
+{
+  "timestamp": "2026-02-25T20:20:30.215761",
+  "username": "tune",
+  "platforms_checked": 70,
+  "confirmed": [
+    {
+      "platform": "TikTok",
+      "url": "https://www.tiktok.com/@tune",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "Twitter/X",
+      "url": "https://x.com/tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "GitLab",
+      "url": "https://gitlab.com/tune",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "Steam",
+      "url": "https://steamcommunity.com/id/tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Pinterest",
+      "url": "https://www.pinterest.com/tune/",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "GitHub",
+      "url": "https://github.com/tune",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "HackerNews",
+      "url": "https://news.ycombinator.com/user?id=tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "YouTube",
+      "url": "https://www.youtube.com/@tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Dailymotion",
+      "url": "https://www.dailymotion.com/tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Mastodon",
+      "url": "https://mastodon.social/@tune",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "Odysee",
+      "url": "https://odysee.com/@tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Bluesky",
+      "url": "https://bsky.app/profile/tune",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "Telegram",
+      "url": "https://t.me/tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Discord",
+      "url": "https://discord.com/invite/tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Poshmark",
+      "url": "https://poshmark.com/closet/tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Threads",
+      "url": "https://www.threads.net/@tune",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Duolingo",
+      "url": "https://www.duolingo.com/profile/tune",
+      "reliable": true,
+      "note": "API 200"
+    }
+  ],
+  "possible": [
+    {
+      "platform": "Replit",
+      "url": "https://replit.com/@tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "BeReal",
+      "url": "https://bere.al/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Patreon",
+      "url": "https://www.patreon.com/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Flickr",
+      "url": "https://www.flickr.com/people/tune/",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Substack",
+      "url": "https://tune.substack.com/",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "500px",
+      "url": "https://500px.com/p/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "About.me",
+      "url": "https://about.me/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Vimeo",
+      "url": "https://vimeo.com/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Fansly",
+      "url": "https://fansly.com/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "OnlyFans",
+      "url": "https://onlyfans.com/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Twitch (clips)",
+      "url": "https://clips.twitch.tv/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Chess.com",
+      "url": "https://www.chess.com/member/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Mix",
+      "url": "https://mix.com/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Kwai",
+      "url": "https://www.kwai.com/@tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Last.fm",
+      "url": "https://www.last.fm/user/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Likee",
+      "url": "https://likee.video/@tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Goodreads",
+      "url": "https://www.goodreads.com/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Gumroad",
+      "url": "https://gumroad.com/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Clubhouse",
+      "url": "https://www.joinclubhouse.com/@tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Strava",
+      "url": "https://www.strava.com/athletes/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Fiverr",
+      "url": "https://www.fiverr.com/tune",
+      "reliable": false,
+      "note": "HTTP 200"
+    }
+  ],
+  "not_found": [
+    "Instagram",
+    "Facebook",
+    "VK",
+    "SoundCloud",
+    "Spotify",
+    "Medium",
+    "Twitch",
+    "Reddit",
+    "OK.ru",
+    "Tumblr",
+    "Snapchat",
+    "XING",
+    "LinkedIn",
+    "Quora",
+    "Wikipedia",
+    "Behance",
+    "Kick.com",
+    "Rumble",
+    "DeviantArt",
+    "Vsco",
+    "Linktree",
+    "Etsy",
+    "Cashapp",
+    "Venmo",
+    "Letterboxd",
+    "Ko-fi",
+    "Upwork",
+    "WhatsApp",
+    "Freelancer"
+  ],
+  "errors": [
+    {
+      "platform": "Ask.fm",
+      "note": "Fehler: HTTPSConnectionPool(host='ask.fm', port=443): Max retries ex"
+    },
+    {
+      "platform": "BuyMeACoffee",
+      "note": "Fehler: HTTPSConnectionPool(host='backend.buymeacoffee.com', port=44"
+    },
+    {
+      "platform": "Triller",
+      "note": "Fehler: HTTPSConnectionPool(host='triller.co', port=443): Max retrie"
+    }
+  ]
+}

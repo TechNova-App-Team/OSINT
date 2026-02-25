@@ -1,0 +1,242 @@
+{
+  "timestamp": "2026-02-25T20:20:23.956766",
+  "username": "clck",
+  "platforms_checked": 70,
+  "confirmed": [
+    {
+      "platform": "GitHub",
+      "url": "https://github.com/clck",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "Tumblr",
+      "url": "https://clck.tumblr.com/",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "TikTok",
+      "url": "https://www.tiktok.com/@clck",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "GitLab",
+      "url": "https://gitlab.com/clck",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "Pinterest",
+      "url": "https://www.pinterest.com/clck/",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Twitter/X",
+      "url": "https://x.com/clck",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Steam",
+      "url": "https://steamcommunity.com/id/clck",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Dailymotion",
+      "url": "https://www.dailymotion.com/clck",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "YouTube",
+      "url": "https://www.youtube.com/@clck",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Odysee",
+      "url": "https://odysee.com/@clck",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Bluesky",
+      "url": "https://bsky.app/profile/clck",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "Poshmark",
+      "url": "https://poshmark.com/closet/clck",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Telegram",
+      "url": "https://t.me/clck",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Discord",
+      "url": "https://discord.com/invite/clck",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Threads",
+      "url": "https://www.threads.net/@clck",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Duolingo",
+      "url": "https://www.duolingo.com/profile/clck",
+      "reliable": true,
+      "note": "API 200"
+    }
+  ],
+  "possible": [
+    {
+      "platform": "BeReal",
+      "url": "https://bere.al/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Replit",
+      "url": "https://replit.com/@clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Patreon",
+      "url": "https://www.patreon.com/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "DeviantArt",
+      "url": "https://www.deviantart.com/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "500px",
+      "url": "https://500px.com/p/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Fansly",
+      "url": "https://fansly.com/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "OnlyFans",
+      "url": "https://onlyfans.com/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Twitch (clips)",
+      "url": "https://clips.twitch.tv/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Chess.com",
+      "url": "https://www.chess.com/member/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Substack",
+      "url": "https://clck.substack.com/",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Likee",
+      "url": "https://likee.video/@clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Kwai",
+      "url": "https://www.kwai.com/@clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Strava",
+      "url": "https://www.strava.com/athletes/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Freelancer",
+      "url": "https://www.freelancer.com/u/clck",
+      "reliable": false,
+      "note": "HTTP 200"
+    }
+  ],
+  "not_found": [
+    "SoundCloud",
+    "Spotify",
+    "Twitch",
+    "Medium",
+    "Reddit",
+    "VK",
+    "Snapchat",
+    "OK.ru",
+    "XING",
+    "Instagram",
+    "Facebook",
+    "LinkedIn",
+    "HackerNews",
+    "Quora",
+    "Wikipedia",
+    "Behance",
+    "About.me",
+    "Kick.com",
+    "Rumble",
+    "Vimeo",
+    "Mastodon",
+    "Vsco",
+    "Etsy",
+    "Linktree",
+    "Flickr",
+    "Cashapp",
+    "Venmo",
+    "Letterboxd",
+    "Goodreads",
+    "Ko-fi",
+    "Upwork",
+    "Gumroad",
+    "Last.fm",
+    "WhatsApp",
+    "Fiverr",
+    "Mix",
+    "Clubhouse"
+  ],
+  "errors": [
+    {
+      "platform": "Ask.fm",
+      "note": "Fehler: HTTPSConnectionPool(host='ask.fm', port=443): Max retries ex"
+    },
+    {
+      "platform": "BuyMeACoffee",
+      "note": "Fehler: HTTPSConnectionPool(host='backend.buymeacoffee.com', port=44"
+    },
+    {
+      "platform": "Triller",
+      "note": "Fehler: HTTPSConnectionPool(host='triller.co', port=443): Max retrie"
+    }
+  ]
+}

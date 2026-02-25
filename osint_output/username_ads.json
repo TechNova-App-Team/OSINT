@@ -1,0 +1,270 @@
+{
+  "timestamp": "2026-02-25T20:20:17.493200",
+  "username": "ads",
+  "platforms_checked": 70,
+  "confirmed": [
+    {
+      "platform": "GitHub",
+      "url": "https://github.com/ads",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "Twitter/X",
+      "url": "https://x.com/ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Steam",
+      "url": "https://steamcommunity.com/id/ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "TikTok",
+      "url": "https://www.tiktok.com/@ads",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "YouTube",
+      "url": "https://www.youtube.com/@ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Mastodon",
+      "url": "https://mastodon.social/@ads",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "Odysee",
+      "url": "https://odysee.com/@ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Pinterest",
+      "url": "https://www.pinterest.com/ads/",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Dailymotion",
+      "url": "https://www.dailymotion.com/ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "VK",
+      "url": "https://vk.com/ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Poshmark",
+      "url": "https://poshmark.com/closet/ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Discord",
+      "url": "https://discord.com/invite/ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Telegram",
+      "url": "https://t.me/ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Threads",
+      "url": "https://www.threads.net/@ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Duolingo",
+      "url": "https://www.duolingo.com/profile/ads",
+      "reliable": true,
+      "note": "API 200"
+    },
+    {
+      "platform": "HackerNews",
+      "url": "https://news.ycombinator.com/user?id=ads",
+      "reliable": true,
+      "note": "HTTP 200"
+    }
+  ],
+  "possible": [
+    {
+      "platform": "BeReal",
+      "url": "https://bere.al/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Flickr",
+      "url": "https://www.flickr.com/people/ads/",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Replit",
+      "url": "https://replit.com/@ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Patreon",
+      "url": "https://www.patreon.com/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "About.me",
+      "url": "https://about.me/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "DeviantArt",
+      "url": "https://www.deviantart.com/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "500px",
+      "url": "https://500px.com/p/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Fansly",
+      "url": "https://fansly.com/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "OnlyFans",
+      "url": "https://onlyfans.com/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Vimeo",
+      "url": "https://vimeo.com/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Twitch (clips)",
+      "url": "https://clips.twitch.tv/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Chess.com",
+      "url": "https://www.chess.com/member/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Freelancer",
+      "url": "https://www.freelancer.com/u/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Kwai",
+      "url": "https://www.kwai.com/@ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Last.fm",
+      "url": "https://www.last.fm/user/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Likee",
+      "url": "https://likee.video/@ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Gumroad",
+      "url": "https://gumroad.com/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Clubhouse",
+      "url": "https://www.joinclubhouse.com/@ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    },
+    {
+      "platform": "Strava",
+      "url": "https://www.strava.com/athletes/ads",
+      "reliable": false,
+      "note": "HTTP 200"
+    }
+  ],
+  "not_found": [
+    "Spotify",
+    "Instagram",
+    "SoundCloud",
+    "Medium",
+    "GitLab",
+    "Facebook",
+    "Reddit",
+    "Twitch",
+    "OK.ru",
+    "Snapchat",
+    "XING",
+    "Quora",
+    "Wikipedia",
+    "Substack",
+    "LinkedIn",
+    "Behance",
+    "Kick.com",
+    "Rumble",
+    "Bluesky",
+    "Linktree",
+    "Vsco",
+    "Cashapp",
+    "Venmo",
+    "Etsy",
+    "Letterboxd",
+    "Goodreads",
+    "Upwork",
+    "Ko-fi",
+    "Mix",
+    "WhatsApp",
+    "Fiverr"
+  ],
+  "errors": [
+    {
+      "platform": "Ask.fm",
+      "note": "Fehler: HTTPSConnectionPool(host='ask.fm', port=443): Max retries ex"
+    },
+    {
+      "platform": "BuyMeACoffee",
+      "note": "Fehler: HTTPSConnectionPool(host='backend.buymeacoffee.com', port=44"
+    },
+    {
+      "platform": "Triller",
+      "note": "Fehler: HTTPSConnectionPool(host='triller.co', port=443): Max retrie"
+    },
+    {
+      "platform": "Tumblr",
+      "note": "Fehler: ('Connection aborted.', RemoteDisconnected('Remote end close"
+    }
+  ]
+}

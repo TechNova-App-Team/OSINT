@@ -19,6 +19,7 @@ import json
 import argparse
 import time
 import re
+import warnings
 import webbrowser
 import urllib.parse
 import urllib.request
@@ -27,6 +28,13 @@ import threading
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+
+# Unterdrückt onnxruntime CUDA-DLL Fehlermeldungen (kein CUDA nötig, CPU reicht)
+os.environ.setdefault("ORT_DISABLE_LOGS", "1")
+os.environ.setdefault("ONNXRUNTIME_DISABLE_LOGGING", "1")
 
 try:
     import requests as _req
@@ -60,6 +68,8 @@ else:
 
 from insightface.app import FaceAnalysis
 from insightface.utils import face_align
+import onnxruntime as _ort
+_ort.set_default_logger_severity(4)  # 4=Fatal – unterdrückt CUDA/DLL-Warnungen
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PLATFORM-DATENBANK
@@ -79,9 +89,8 @@ PLATFORMS: dict = {
                      "err":  "Sorry, this page",
                      "reliable": True},
     "TikTok":       {"url":  "https://www.tiktok.com/@{}",
-                     # oEmbed: 200+JSON=existiert, 400/404=nicht gefunden
-                     "api":  "https://www.tiktok.com/oembed?url=https://www.tiktok.com/@{}",
-                     "ok":   "author_name",
+                     # Existierender User: sein Username erscheint als JSON-Wert in der Seite
+                     "ok_fmt": '"{}"',
                      "reliable": True},
     "Twitter/X":    {"url":  "https://x.com/{}",
                      "err":  "This account doesn",
@@ -349,9 +358,26 @@ def load_model(gpu: bool = True) -> FaceAnalysis:
         ["CPUExecutionProvider"]
     )
     info("Lade KI-Modell (buffalo_l – ArcFace 512d) …")
-    model = FaceAnalysis(name="buffalo_l", providers=providers)
-    # det_size=640 = maximale Genauigkeit, findet auch kleine/seitliche Gesichter
-    model.prepare(ctx_id=0 if gpu else -1, det_size=(640, 640))
+    sys.stdout.flush(); sys.stderr.flush()
+
+    # C++-Level stderr (CUDA-DLL Warnungen) via fd-Redirect stummschalten
+    devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    old_stderr_fd = os.dup(2)
+    os.dup2(devnull_fd, 2)
+    os.close(devnull_fd)
+    # Python-Level stdout (InsightFace "find model:" Zeilen) via StringIO abfangen
+    import io as _io
+    _old_stdout = sys.stdout
+    sys.stdout = _io.StringIO()
+    try:
+        model = FaceAnalysis(name="buffalo_l", providers=providers)
+        model.prepare(ctx_id=0 if gpu else -1, det_size=(640, 640))
+    finally:
+        sys.stdout = _old_stdout
+        sys.stderr.flush()
+        os.dup2(old_stderr_fd, 2)
+        os.close(old_stderr_fd)
+
     ok("Modell geladen.")
     return model
 
@@ -375,6 +401,9 @@ def get_faces(model: FaceAnalysis, image_path: str):
 
 # ─── Ausgerichtetes Gesicht (112×112, ideal für ArcFace) ─────────────────────
 def get_aligned_crop(img, face, size=112) -> np.ndarray:
+    # norm_crop akzeptiert nur Vielfache von 112 oder 128
+    valid = [112, 128, 224, 256, 336, 384, 448, 512]
+    size  = min(valid, key=lambda v: abs(v - size))
     return face_align.norm_crop(img, landmark=face.kps, image_size=size)
 
 # ─── Kosinus-Ähnlichkeit ──────────────────────────────────────────────────────
@@ -585,6 +614,8 @@ def _check_platform(name: str, cfg: dict, username: str) -> tuple:
     check_url   = cfg["api"].format(username) if "api" in cfg else profile_url
     err_str     = cfg.get("err", None)
     ok_str      = cfg.get("ok", None)
+    if "ok_fmt" in cfg:
+        ok_str  = cfg["ok_fmt"].format(username)   # dynamisch: z.B. '"sgj51108"'
     exp_code    = cfg.get("code", 404)
     reliable    = cfg.get("reliable", False)
 
@@ -617,79 +648,269 @@ def _check_platform(name: str, cfg: dict, username: str) -> tuple:
         return name, profile_url, None, f"Fehler: {short}", reliable
 
 
-def cmd_username(username: str, workers: int = 20):
-    bold(f"\n── Username-Suche: '{username}' auf {len(PLATFORMS)} Plattformen ──\n")
-    results  = {"found": [], "not_found": [], "error": []}
-    total    = len(PLATFORMS)
-    done     = {"n": 0}
-    found_n  = {"n": 0}
+def cmd_username(username: str, workers: int = 25, only_reliable: bool = False):
+    n_plat   = len(PLATFORMS)
+    label    = f"'{username}'  |  {n_plat} Plattformen"
+    if only_reliable:
+        label += "  (nur zuverlaessige Checks)"
+    bold(f"\n{'─'*60}")
+    bold(f"  USERNAME-SUCHE: {label}")
+    bold(f"{'─'*60}\n")
+
+    confirmed  = []   # reliable=True + found
+    possible   = []   # reliable=False + found (might be false positive)
+    not_found  = []
+    errors     = []
+    total      = len(PLATFORMS)
+    done       = {"n": 0}
+    hit_n      = {"n": 0}
 
     def _cb(future):
-        name, url, found, note = future.result()
+        name, url, found, note, reliable = future.result()
         done["n"] += 1
         pct = done["n"] / total * 100
-        bar = "█" * int(pct / 5) + "░" * (20 - int(pct / 5))
+        bar = "█" * int(pct / 4) + "░" * (25 - int(pct / 4))
         with _print_lock:
             sys.stdout.write(
                 f"\r{C.CYAN}[{done['n']:>2}/{total}]{C.RESET} "
-                f"[{bar}] {pct:5.1f}%  Gefunden: {C.GREEN}{found_n['n']}{C.RESET}  "
-                f"Prüfe: {name:<20}"
+                f"|{bar}| {pct:5.1f}%  "
+                f"{C.GREEN}Gefunden: {hit_n['n']}{C.RESET}  "
+                f"{name:<22}"
             )
             sys.stdout.flush()
         if found is True:
-            found_n["n"] += 1
-            results["found"].append({"platform": name, "url": url, "note": note})
+            hit_n["n"] += 1
+            entry = {"platform": name, "url": url, "reliable": reliable, "note": note}
+            if reliable:
+                confirmed.append(entry)
+            else:
+                possible.append(entry)
         elif found is False:
-            results["not_found"].append({"platform": name, "url": url})
+            not_found.append({"platform": name})
         else:
-            results["error"].append({"platform": name, "note": note})
+            errors.append({"platform": name, "note": note})
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
         futures = [
             ex.submit(_check_platform, name, cfg, username)
             for name, cfg in PLATFORMS.items()
+            if not only_reliable or cfg.get("reliable", False)
         ]
         for f in futures:
             f.add_done_callback(_cb)
         concurrent.futures.wait(futures)
 
-    print()  # Zeilenumbruch
-    bold(f"\n── Ergebnisse für '@{username}' ─────────────────────────────────")
+    print()  # Zeilenumbruch nach Fortschritt
 
-    if not results["found"]:
-        warn("Kein Account auf den geprüften Plattformen gefunden.")
-        warn("Tipp: Versuche Spitznamen, Geburtsjahrgang, Länderkürzel usw.")
+    # ── Ergebnisse ausgeben ──────────────────────────────────────────────────
+    bold(f"\n{'═'*60}")
+    bold(f"  ERGEBNIS: @{username}")
+    bold(f"{'═'*60}")
+
+    if not confirmed and not possible:
+        warn("Kein Account gefunden.")
+        warn("Tipps: Geburtsjahrgang anhaengen, Punkt/Unterstrich versuchen,")
+        warn("       Spitznamen oder Vor-/Nachname kombinieren.")
     else:
-        ok(f"{len(results['found'])} Account(s) gefunden:\n")
-        for r in results["found"]:
-            tag = f"{C.GREEN}✔  GEFUNDEN{C.RESET}"
-            print(f"  {tag}  {C.BOLD}{r['platform']:<20}{C.RESET}  {r['url']}")
+        # BESTÄTIGT
+        if confirmed:
+            print(f"\n  {C.GREEN}{C.BOLD}BESTAETIGT ({len(confirmed)} Treffer):{C.RESET}")
+            print(f"  {'─'*56}")
+            for r in sorted(confirmed, key=lambda x: x["platform"]):
+                print(f"  {C.GREEN}✔{C.RESET}  {C.BOLD}{r['platform']:<20}{C.RESET}  {r['url']}")
 
-    if results["not_found"]:
-        print(f"\n  {C.YELLOW}Nicht gefunden ({len(results['not_found'])}):{C.RESET} "
-              + ", ".join(r["platform"] for r in results["not_found"]))
+        # MÖGLICHERWEISE (False-Positive möglich)
+        if possible:
+            print(f"\n  {C.YELLOW}{C.BOLD}MOEGLICHERWEISE ({len(possible)} - bitte manuell pruefen):{C.RESET}")
+            print(f"  {'─'*56}")
+            for r in sorted(possible, key=lambda x: x["platform"]):
+                print(f"  {C.YELLOW}?{C.RESET}  {C.BOLD}{r['platform']:<20}{C.RESET}  {r['url']}")
+            print(f"  {C.YELLOW}[!] Diese Seiten geben auch 200 fuer nicht-existente User zurueck.{C.RESET}")
+            print(f"      Bitte manuell im Browser pruefen!")
 
-    # JSON-Report
+    if errors:
+        print(f"\n  {C.RED}Fehler ({len(errors)}):{C.RESET} " +
+              ", ".join(e["platform"] for e in errors))
+
+    # Zusammenfassung
+    print(f"\n  {'─'*56}")
+    print(f"  Bestaetigt: {C.GREEN}{len(confirmed)}{C.RESET}  "
+          f"Moeglicherweise: {C.YELLOW}{len(possible)}{C.RESET}  "
+          f"Nicht gefunden: {len(not_found)}  "
+          f"Fehler: {C.RED}{len(errors)}{C.RESET}")
+    print(f"  {'─'*56}")
+
+    # ── JSON-Report speichern ────────────────────────────────────────────────
     OUTPUT_DIR.mkdir(exist_ok=True)
     rpt = {
-        "timestamp": datetime.now().isoformat(),
-        "username": username,
+        "timestamp":         datetime.now().isoformat(),
+        "username":          username,
         "platforms_checked": total,
-        "found": results["found"],
-        "not_found": [r["platform"] for r in results["not_found"]],
-        "errors": results["error"],
+        "confirmed":         confirmed,
+        "possible":          possible,
+        "not_found":         [r["platform"] for r in not_found],
+        "errors":            errors,
     }
     rpt_path = OUTPUT_DIR / f"username_{username}.json"
     rpt_path.write_text(json.dumps(rpt, indent=2, ensure_ascii=False), encoding="utf-8")
-    ok(f"\nReport → {rpt_path}")
+    ok(f"\nReport gespeichert → {rpt_path}")
 
 
-# ─── MODUS 5: Gesicht → Social Media Links ───────────────────────────────────
+# ─── Social-Media Profil-Extraktion aus HTML ─────────────────────────────────
+# Regex-Patterns: (pattern, Plattformname)
+_SOCIAL_RE = [
+    (r"instagram\.com/([A-Za-z0-9_.]{2,30})(?:/|[?#\s\"']|$)", "Instagram"),
+    (r"tiktok\.com/@([A-Za-z0-9_.]{2,30})(?:/|[?#\s\"']|$)",   "TikTok"),
+    (r"(?:twitter|x)\.com/([A-Za-z0-9_]{2,30})(?:/|[?#\s\"']|$)", "Twitter/X"),
+    (r"facebook\.com/([A-Za-z0-9_.]{2,50})(?:/|[?#\s\"']|$)",  "Facebook"),
+    (r"vk\.com/([A-Za-z0-9_.]{2,30})(?:/|[?#\s\"']|$)",        "VK"),
+    (r"ok\.ru/([A-Za-z0-9_.]{2,30})(?:/|[?#\s\"']|$)",         "OK.ru"),
+    (r"youtube\.com/(?:@|c/|user/)?([A-Za-z0-9_.@-]{3,40})(?:/|[?#\s\"']|$)", "YouTube"),
+    (r"twitch\.tv/([A-Za-z0-9_]{2,25})(?:/|[?#\s\"']|$)",      "Twitch"),
+    (r"linkedin\.com/in/([A-Za-z0-9_-]{2,40})(?:/|[?#\s\"']|$)", "LinkedIn"),
+    (r"pinterest\.com/([A-Za-z0-9_.]{2,30})(?:/|[?#\s\"']|$)", "Pinterest"),
+    (r"snapchat\.com/add/([A-Za-z0-9_.-]{2,30})(?:/|[?#\s\"']|$)", "Snapchat"),
+    (r"reddit\.com/(?:u|user)/([A-Za-z0-9_-]{2,30})(?:/|[?#\s\"']|$)", "Reddit"),
+]
+
+# Pfade die kein Username sind (Navigation, statische Seiten, Tracker, …)
+_SKIP_HANDLES = {
+    # Navigation & Struktur
+    "explore", "p", "reel", "reels", "stories", "account", "accounts", "tags",
+    "search", "about", "help", "legal", "privacy", "terms", "terms-of-service",
+    "termsofservice", "safety", "blog", "press", "business", "developers",
+    "developer", "home", "login", "signin", "signup", "sign-up", "register",
+    "logout", "settings", "support", "official", "checkout", "cart",
+    "shop", "store", "news", "contact", "photos", "video", "videos", "live",
+    "trending", "discover", "challenges", "music", "effects", "creators",
+    "following", "messages", "notifications", "foryou", "for-you",
+    # YouTube-spezifisch
+    "channel", "c", "watch", "results", "feed", "playlist", "shorts",
+    # Twitter/X-spezifisch
+    "i", "compose", "intent", "collections", "auth", "company",
+    "ads", "analytics", "oauth", "tune",
+    # Facebook-spezifisch
+    "public", "groups", "pages", "marketplace", "events",
+    # Pinterest-spezifisch
+    "pin", "pins", "board",
+    # Allgemeine False-Positives
+    "share", "report", "edit", "delete", "create", "hashtag", "topic",
+    "popular", "featured", "top", "new", "all", "none",
+    "image", "images", "photo", "picture", "avatar", "profile",
+    "web", "static", "assets", "media", "cdn", "api", "v1", "v2",
+    "maps", "tune", "clck", "go", "click", "redirect", "out",
+    "download", "app", "ios", "android", "mobile",
+    "en", "de", "ru", "fr", "es", "it", "pt", "nl", "pl",   # Sprachcodes
+    "embed", "widget", "iframe",
+    "404", "403", "500",
+}
+
+
+def _extract_social_profiles(text: str) -> list[dict]:
+    """Durchsucht HTML/JSON-Text nach Social-Media Profil-URLs."""
+    found: dict = {}
+    for pattern, platform in _SOCIAL_RE:
+        for m in re.finditer(pattern, text, re.IGNORECASE):
+            handle = m.group(1).strip("/?#\"' ")
+            if not handle or handle.lower() in _SKIP_HANDLES:
+                continue
+            if len(handle) < 4 or handle.startswith("."):
+                continue
+            # Rein numerische Handles ignorieren (z.B. "404", "200")
+            if handle.isdigit():
+                continue
+            raw = m.group(0)
+            # Saubere URL zusammenbauen
+            if "://" not in raw:
+                url = "https://" + raw.rstrip("/?#\"' ")
+            else:
+                url = raw.rstrip("/?#\"' ")
+            key = f"{platform}||{handle.lower()}"
+            if key not in found:
+                found[key] = {"platform": platform, "username": handle, "url": url}
+    return list(found.values())
+
+
+def _yandex_reverse_search(face_path: str) -> tuple:
+    """Lädt Gesichtsbild auf Yandex Bilder hoch → gibt (Profile-Liste, Ergebnis-URL) zurück."""
+    if not _REQUESTS_OK:
+        return [], ""
+    s = _req.Session()
+    s.headers.update({
+        "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) "
+                       "Chrome/122.0.0.0 Safari/537.36"),
+        "Accept-Language": "ru,en;q=0.9",   # Russisch zuerst → besser für VK/OK
+    })
+    try:
+        with open(face_path, "rb") as fh:
+            img_bytes = fh.read()
+        resp = s.post(
+            "https://yandex.com/images/search",
+            params={"rpt": "imageview"},
+            files={"upfile": ("face.jpg", img_bytes, "image/jpeg")},
+            timeout=25, allow_redirects=True,
+        )
+        html = resp.text
+        profiles = _extract_social_profiles(html)
+        # Zusätzlich alle JSON-String-URLs in der Seite scannen
+        for jm in re.finditer(r'"(https?://[^"]{15,250})"', html):
+            profiles += _extract_social_profiles(jm.group(1))
+        # Deduplizieren
+        seen: set = set()
+        unique = []
+        for p in profiles:
+            k = f"{p['platform']}||{p['username'].lower()}"
+            if k not in seen:
+                seen.add(k); unique.append(p)
+        return unique, resp.url
+    except Exception as e:
+        return [], f"Fehler: {e}"
+
+
+def _bing_reverse_search(face_path: str) -> tuple:
+    """Lädt Gesichtsbild auf Bing Visual Search hoch → gibt (Profile-Liste, Ergebnis-URL) zurück."""
+    if not _REQUESTS_OK:
+        return [], ""
+    s = _req.Session()
+    s.headers.update({
+        "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) "
+                       "Chrome/122.0.0.0 Safari/537.36"),
+    })
+    try:
+        s.get("https://www.bing.com/", timeout=10)   # Cookies holen
+        with open(face_path, "rb") as fh:
+            img_bytes = fh.read()
+        resp = s.post(
+            "https://www.bing.com/images/search",
+            params={"q": "", "view": "detailv2", "iss": "sbiupload", "FORM": "SBIVSP"},
+            files={"imageformdata": ("face.jpg", img_bytes, "image/jpeg")},
+            timeout=25, allow_redirects=True,
+        )
+        html = resp.text
+        profiles = _extract_social_profiles(html)
+        for jm in re.finditer(r'"(https?://[^"]{15,250})"', html):
+            profiles += _extract_social_profiles(jm.group(1))
+        seen: set = set()
+        unique = []
+        for p in profiles:
+            k = f"{p['platform']}||{p['username'].lower()}"
+            if k not in seen:
+                seen.add(k); unique.append(p)
+        return unique, resp.url
+    except Exception as e:
+        return [], f"Fehler: {e}"
+
+
+# ─── MODUS 5: Gesicht → Social Media (automatisch + Fallback) ────────────────
 def cmd_social(model, image_path: str, open_browser: bool = False):
     """
-    Extrahiert das Gesicht aus einem Foto und
-    - zeigt alle relevanten Face-Search-Engines mit Anleitung
-    - öffnet optional die wichtigsten direkt im Browser
+    1. Extrahiert das beste Gesicht aus dem Bild (224×224, ArcFace-aligned)
+    2. Lädt es automatisch bei Yandex Bilder + Bing Visual Search hoch
+    3. Parst die HTML-Ergebnisse nach Social-Media Profil-URLs
+    4. Bei Treffern: automatische Username-Suche auf 70 Plattformen
+    5. Bei keinen Treffern: zeigt manuelle Upload-Links als Fallback
     """
     bold(f"\n── Social-Media-Suche via Gesichtsbild: {image_path} ──\n")
     img, faces = get_faces(model, image_path)
@@ -698,83 +919,119 @@ def cmd_social(model, image_path: str, open_browser: bool = False):
         warn("Kein Gesicht gefunden. Tipp: Klareres, frontaleres Bild nutzen.")
         return
 
-    best   = max(faces, key=lambda f: f.det_score)
+    best = max(faces, key=lambda f: f.det_score)
     OUTPUT_DIR.mkdir(exist_ok=True)
-    ali_f  = OUTPUT_DIR / "social_search_face.jpg"
-    cv2.imwrite(str(ali_f), get_aligned_crop(img, best, size=300))
+    ali_f = OUTPUT_DIR / "social_search_face.jpg"
+    cv2.imwrite(str(ali_f), get_aligned_crop(img, best, size=224))
     ok(f"Gesicht extrahiert → {ali_f}")
     ok(f"Qualität: {face_quality(best)}")
+    gender = "Mann" if best.gender == 1 else "Frau"
+    info(f"Einschätzung: {gender}, ~{int(best.age)} Jahre\n")
 
-    ABS_PATH = str(ali_f.resolve())
+    face_path_str = str(ali_f)
 
-    print(f"""
-  {C.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{C.RESET}
-  {C.YELLOW}SCHRITT 1{C.RESET}  Gesicht-Datei liegt hier:
-             {C.CYAN}{ABS_PATH}{C.RESET}
+    # ── Automatische Reverse-Image-Suche (parallel) ──────────────────────────
+    info("Starte automatische Reverse-Image-Suche (Yandex + Bing) …")
+    yandex_profiles: list; bing_profiles: list
+    yandex_url = ""; bing_url = ""
 
-  {C.YELLOW}SCHRITT 2{C.RESET}  Öffne eine der Seiten unten und lade die Datei hoch:
-  {C.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{C.RESET}""")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+        fut_y = ex.submit(_yandex_reverse_search, face_path_str)
+        fut_b = ex.submit(_bing_reverse_search,   face_path_str)
+        yandex_profiles, yandex_url = fut_y.result()
+        bing_profiles,   bing_url   = fut_b.result()
 
-    SOCIAL_SITES = [
-        ("★★★", "PimEyes",
-         "https://pimeyes.com/",
-         "Beste Gesichts-Suchmaschine – findet Social-Media, Nachrichtenartikel, Blogs"),
-        ("★★★", "FaceCheck.ID",
-         "https://facecheck.id/",
-         "Direkte Social-Media Profilsuche (Instagram, TikTok, Twitter, Facebook)"),
-        ("★★★", "Yandex Bilder",
-         "https://yandex.com/images/",
-         "Yandex findet oft Profile die Google nicht findet – sehr gut für CIS-Raum"),
-        ("★★☆", "Google Lens",
-         "https://lens.google.com/",
-         "Findet ähnliche Bilder und verlinkte Webseiten"),
-        ("★★☆", "Bing Visual Search",
-         "https://www.bing.com/visualsearch",
-         "Microsofts Reverse-Search – gut für lateinamerikanische / asiatische Profile"),
-        ("★★☆", "Social Catfish",
-         "https://socialcatfish.com/",
-         "Spezialisiert auf Personen-Suche, Fake-Profil-Erkennung"),
-        ("★★☆", "TinEye",
-         "https://tineye.com/",
-         "Findet exakt gleiche Bild-Uploads auf anderen Webseiten"),
-        ("★☆☆", "Lenso.ai",
-         "https://lenso.ai/",
-         "KI-gestützt, findet Duplikate und ähnliche Personen-Fotos"),
-        ("★☆☆", "Search4Faces",
-         "https://search4faces.com/",
-         "Fokus auf russische/ukrainische Social Media (VK, OK.ru)"),
-    ]
+    tag_y = (f"{C.GREEN}✔ {len(yandex_profiles)} Treffer{C.RESET}"
+             if yandex_profiles else f"{C.YELLOW}0 Treffer{C.RESET}")
+    tag_b = (f"{C.GREEN}✔ {len(bing_profiles)} Treffer{C.RESET}"
+             if bing_profiles else f"{C.YELLOW}0 Treffer{C.RESET}")
+    info(f"Yandex Bilder      → {tag_y}")
+    info(f"Bing Visual Search → {tag_b}")
 
-    for stars, name, url, desc in SOCIAL_SITES:
-        print(f"  {C.CYAN}{stars}{C.RESET}  {C.BOLD}{name:<20}{C.RESET}  {url}")
-        print(f"             {C.YELLOW}{desc}{C.RESET}\n")
+    # Alle Profile zusammenführen + deduplizieren
+    all_profiles: list = []
+    seen_keys: set = set()
+    for p in yandex_profiles + bing_profiles:
+        k = f"{p['platform']}||{p['username'].lower()}"
+        if k not in seen_keys:
+            seen_keys.add(k); all_profiles.append(p)
 
-    print(f"  {C.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{C.RESET}")
-    print(f"  {C.YELLOW}SCHRITT 3{C.RESET}  Wenn du einen Benutzernamen findest, nutze:")
-    print(f"             {C.CYAN}python app.py --username <gefundener_name>{C.RESET}")
-    print(f"             → prüft 50+ Plattformen auf diesen Username\n")
+    # ── Ergebnisse ausgeben ──────────────────────────────────────────────────
+    if all_profiles:
+        bold(f"\n{'═'*60}")
+        bold(f"  GEFUNDENE PROFILE ({len(all_profiles)} Treffer):")
+        bold(f"{'═'*60}")
+        for p in sorted(all_profiles, key=lambda x: x["platform"]):
+            print(f"  {C.GREEN}✔{C.RESET}  {C.BOLD}{p['platform']:<20}{C.RESET}  {p['url']}")
+
+        # Einzigartige Usernamen für automatische 70-Plattform-Suche
+        usernames = list({p["username"].lower() for p in all_profiles})
+        print()
+        if len(usernames) == 1:
+            info(f"Starte automatische Username-Suche für @{usernames[0]} …")
+            cmd_username(usernames[0])
+        elif len(usernames) <= 3:
+            for uname in usernames:
+                info(f"Starte Username-Suche für @{uname} …")
+                cmd_username(uname)
+        else:
+            info("Mehrere Usernamen gefunden – starte Suche für die 3 wahrscheinlichsten:")
+            # Priorität: kürzere + häufiger vorkommende Usernamen
+            from collections import Counter
+            counts = Counter(p["username"].lower() for p in all_profiles)
+            top3 = [u for u, _ in counts.most_common(3)]
+            for uname in top3:
+                info(f"Starte Username-Suche für @{uname} …")
+                cmd_username(uname)
+    else:
+        # ── Fallback: Manuelle Upload-Links ──────────────────────────────────
+        warn("Kein automatischer Treffer (Websites nutzen JS-Rendering).")
+        warn("Lade das Gesicht manuell bei folgenden Seiten hoch:\n")
+        print(f"  {C.CYAN}Gesicht gespeichert:{C.RESET}  {ali_f.resolve()}\n")
+        MANUAL_SITES = [
+            ("★★★", "PimEyes",            "https://pimeyes.com/",
+             "Beste KI-Gesichtssuche – findet Social-Media, Blogs, Artikel"),
+            ("★★★", "FaceCheck.ID",       "https://facecheck.id/",
+             "Instagram, TikTok, Twitter, Facebook direkt"),
+            ("★★★", "Yandex Bilder",      "https://yandex.com/images/",
+             "Sehr stark für russische/europäische Profile (VK, OK.ru)"),
+            ("★★☆", "Google Lens",        "https://lens.google.com/",
+             "Ähnliche Bilder und verlinkte Webseiten"),
+            ("★★☆", "Bing Visual Search", "https://www.bing.com/visualsearch",
+             "Gut für asiatische und lateinamerikanische Profile"),
+            ("★★☆", "Search4Faces",       "https://search4faces.com/",
+             "Gezielt für VK / OK.ru"),
+            ("★☆☆", "Social Catfish",     "https://socialcatfish.com/",
+             "Personen-Suche, Fake-Erkennung"),
+            ("★☆☆", "TinEye",             "https://tineye.com/",
+             "Findet exakt dieselbe Bilddatei an anderen Stellen"),
+        ]
+        for stars, name, url, desc in MANUAL_SITES:
+            print(f"  {C.CYAN}{stars}{C.RESET}  {C.BOLD}{name:<22}{C.RESET}  {url}")
+            print(f"             {C.YELLOW}{desc}{C.RESET}\n")
+        print(f"  Sobald du einen Username kennst: "
+              f"{C.CYAN}python app.py --username <name>{C.RESET}\n")
 
     if open_browser:
-        info("Öffne PimEyes und FaceCheck.ID im Browser …")
         webbrowser.open("https://pimeyes.com/")
-        time.sleep(0.5)
+        time.sleep(0.4)
         webbrowser.open("https://facecheck.id/")
-        time.sleep(0.5)
-        webbrowser.open("https://yandex.com/images/")
 
-    # Report
+    # ── JSON-Report ──────────────────────────────────────────────────────────
     rpt = {
-        "timestamp": datetime.now().isoformat(),
-        "source_image": str(image_path),
-        "aligned_face": str(ali_f),
-        "face_quality": round(float(best.det_score), 4),
-        "gender_estimate": "Mann" if best.gender == 1 else "Frau",
-        "age_estimate": int(best.age),
-        "search_sites": [{"name": n, "url": u} for _, n, u, _ in SOCIAL_SITES],
+        "timestamp":      datetime.now().isoformat(),
+        "source_image":   str(image_path),
+        "aligned_face":   str(ali_f),
+        "face_quality":   round(float(best.det_score), 4),
+        "gender":         gender,
+        "age_estimate":   int(best.age),
+        "found_profiles": all_profiles,
+        "yandex_result":  yandex_url,
+        "bing_result":    bing_url,
     }
     rpt_path = OUTPUT_DIR / "social_report.json"
     rpt_path.write_text(json.dumps(rpt, indent=2, ensure_ascii=False), encoding="utf-8")
-    ok(f"Report → {rpt_path}")
+    ok(f"\nReport → {rpt_path}")
 
 
 # ─── MODUS 3: Zwei Bilder direkt vergleichen ─────────────────────────────────
@@ -810,8 +1067,8 @@ def cmd_compare(model, target_path: str, compare_path: str):
                    OUTPUT_DIR / f"compare_{Path(compare_path).name}", matches=sims)
 
     # Side-by-Side speichern
-    a_crop  = get_aligned_crop(a_img, a_face, size=200)
-    b_crop  = get_aligned_crop(b_img, b_faces[int(np.argmax(sims))], size=200)
+    a_crop  = get_aligned_crop(a_img, a_face, size=224)
+    b_crop  = get_aligned_crop(b_img, b_faces[int(np.argmax(sims))], size=224)
     divider = np.full((200, 10, 3), 255, dtype=np.uint8)
     cv2.imwrite(str(OUTPUT_DIR / "side_by_side.jpg"), np.hstack([a_crop, divider, b_crop]))
     ok(f"Side-by-Side → {OUTPUT_DIR / 'side_by_side.jpg'}")
